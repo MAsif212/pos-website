@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cocoa: #4E342E;
+  --color-cocoa-dark: #3E2723;
+  --color-cocoa-light: #6D4C41;
+  --color-cream: #F8F4E7;
+  --color-cream-dark: #EFE7D6;
+  --color-sand: #E0D5C3;
+  --color-mocha: #8D6E63;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-cocoa);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    background: #fff;
+    border: 1px solid var(--color-sand);
+    border-radius: 1rem;
+    padding: 1.25rem;
+  }
+  .label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-mocha);
+    margin-bottom: 0.35rem;
+  }
+  .input {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--color-sand);
+    border-radius: 0.75rem;
+    padding: 0.7rem 1rem;
+    font-size: 1rem;
+    color: var(--color-cocoa);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-cocoa);
+    box-shadow: 0 0 0 3px rgba(78, 52, 46, 0.15);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.7rem 1.25rem;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-cocoa);
+    color: var(--color-cream);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-cocoa-dark);
+  }
+  .btn-secondary {
+    background: #fff;
+    color: var(--color-cocoa);
+    border: 1px solid var(--color-cocoa);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-cream-dark);
+  }
+  .btn-danger {
+    background: #a83232;
+    color: #fff;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #8a2626;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt,
+  #receipt * {
+    visibility: visible;
+  }
+  #receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 0;
+    border: none;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
