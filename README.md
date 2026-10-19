@@ -77,7 +77,12 @@ pos-website/
 cd backend
 npm install
 ```
-Copy `.env.example` to `.env` and add your MongoDB connection string. Then:
+Create a file named `.env` inside the `backend` folder with these two lines, using your own MongoDB Atlas connection string:
+```env
+PORT=5000
+MONGO_URI=mongodb+srv://USERNAME:PASSWORD@your-cluster.mongodb.net/supermarket_pos?retryWrites=true&w=majority
+```
+Then:
 ```bash
 npm run seed -- --with-sales
 npm run dev
