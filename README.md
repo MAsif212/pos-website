@@ -89,7 +89,7 @@ npm run dev
 ```
 The API runs at `http://localhost:5000`.
 
-### 2. Frontend
+### 2. Frontend.
 Open a second terminal:
 ```bash
 cd frontend
