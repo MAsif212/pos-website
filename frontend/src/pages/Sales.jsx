@@ -4,6 +4,7 @@ import { Search, Eye, RotateCcw, Receipt as ReceiptIcon } from "lucide-react";
 import api from "../api/axios";
 import PageHeader from "../components/PageHeader";
 import Receipt from "../components/Receipt";
+import { useAuth } from "../context/AuthContext";
 import { formatRs, formatDate } from "../utils/format";
 
 const StatusBadge = ({ status }) => (
@@ -17,6 +18,7 @@ const StatusBadge = ({ status }) => (
 );
 
 export default function Sales() {
+  const { isAdmin } = useAuth();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -72,6 +74,9 @@ export default function Sales() {
     setStatus("");
   };
 
+  const canRefund = (s) => isAdmin && s.status === "completed";
+  const itemCount = (s) => s.items.reduce((n, i) => n + i.quantity, 0);
+
   const completed = sales.filter((s) => s.status === "completed");
   const revenue = completed.reduce((sum, s) => sum + s.total, 0);
   const refundedCount = sales.length - completed.length;
@@ -79,7 +84,12 @@ export default function Sales() {
 
   return (
     <>
-      <PageHeader title="Sales history" subtitle="Every bill, with reprint and refund" />
+      <PageHeader
+        title={isAdmin ? "Sales history" : "My sales"}
+        subtitle={
+          isAdmin ? "Every bill, with reprint and refund" : "Sales you made, with receipt reprint"
+        }
+      />
 
       {/* Summary cards */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
@@ -142,6 +152,7 @@ export default function Sales() {
                 <tr>
                   <th className="px-5 py-3 font-semibold">Invoice</th>
                   <th className="px-5 py-3 font-semibold">Date</th>
+                  {isAdmin && <th className="px-5 py-3 font-semibold">Cashier</th>}
                   <th className="px-5 py-3 font-semibold">Items</th>
                   <th className="px-5 py-3 font-semibold">Payment</th>
                   <th className="px-5 py-3 font-semibold">Total</th>
@@ -154,9 +165,10 @@ export default function Sales() {
                   <tr key={s._id} className="border-b border-sand last:border-0 hover:bg-cream/60">
                     <td className="px-5 py-4 font-mono text-sm font-semibold">{s.invoiceNo}</td>
                     <td className="px-5 py-4 text-sm">{formatDate(s.createdAt)}</td>
-                    <td className="px-5 py-4">
-                      {s.items.reduce((n, i) => n + i.quantity, 0)}
-                    </td>
+                    {isAdmin && (
+                      <td className="px-5 py-4 text-sm">{s.cashierName || <span className="text-mocha">—</span>}</td>
+                    )}
+                    <td className="px-5 py-4">{itemCount(s)}</td>
                     <td className="px-5 py-4 capitalize">{s.paymentMethod}</td>
                     <td className="px-5 py-4 font-semibold">{formatRs(s.total)}</td>
                     <td className="px-5 py-4">
@@ -171,7 +183,7 @@ export default function Sales() {
                         >
                           <Eye size={18} />
                         </button>
-                        {s.status === "completed" && (
+                        {canRefund(s) && (
                           <button
                             className="btn btn-danger px-3 py-2"
                             onClick={() => handleRefund(s)}
@@ -196,19 +208,21 @@ export default function Sales() {
                   <div className="min-w-0">
                     <p className="truncate font-mono font-semibold">{s.invoiceNo}</p>
                     <p className="text-sm text-mocha">{formatDate(s.createdAt)}</p>
+                    {isAdmin && s.cashierName && (
+                      <p className="text-sm text-mocha">Cashier: {s.cashierName}</p>
+                    )}
                   </div>
                   <StatusBadge status={s.status} />
                 </div>
                 <p className="mb-4 text-mocha">
-                  {s.items.reduce((n, i) => n + i.quantity, 0)} items ·{" "}
-                  <span className="capitalize">{s.paymentMethod}</span> ·{" "}
+                  {itemCount(s)} items · <span className="capitalize">{s.paymentMethod}</span> ·{" "}
                   <span className="text-lg font-bold text-cocoa">{formatRs(s.total)}</span>
                 </p>
                 <div className="flex gap-2">
                   <button className="btn btn-secondary flex-1" onClick={() => setViewing(s)}>
                     <Eye size={18} /> View
                   </button>
-                  {s.status === "completed" && (
+                  {canRefund(s) && (
                     <button className="btn btn-danger flex-1" onClick={() => handleRefund(s)}>
                       <RotateCcw size={18} /> Refund
                     </button>

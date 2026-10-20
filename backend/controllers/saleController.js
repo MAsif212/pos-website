@@ -4,6 +4,8 @@ const asyncHandler = require("../middleware/asyncHandler");
 
 const money = (n) => Math.round(n * 100) / 100;
 
+const isCashier = (req) => req.user.role === "cashier";
+
 exports.createSale = asyncHandler(async (req, res) => {
   const {
     items,
@@ -92,6 +94,8 @@ exports.createSale = asyncHandler(async (req, res) => {
     amountPaid: paid,
     change,
     customerName: customerName || undefined,
+    cashier: req.user._id,
+    cashierName: req.user.name,
   });
 
   res.status(201).json(sale);
@@ -100,6 +104,9 @@ exports.createSale = asyncHandler(async (req, res) => {
 exports.getSales = asyncHandler(async (req, res) => {
   const { from, to, search, status } = req.query;
   const filter = {};
+
+  // Cashiers only see their own sales
+  if (isCashier(req)) filter.cashier = req.user._id;
 
   if (from || to) {
     filter.createdAt = {};
@@ -119,7 +126,8 @@ exports.getSales = asyncHandler(async (req, res) => {
 
 exports.getSale = asyncHandler(async (req, res) => {
   const sale = await Sale.findById(req.params.id);
-  if (!sale) {
+  const notTheirs = sale && isCashier(req) && String(sale.cashier) !== String(req.user._id);
+  if (!sale || notTheirs) {
     res.status(404);
     throw new Error("Sale not found");
   }

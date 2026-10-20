@@ -47,6 +47,8 @@ app.get("/api/health", (req, res) => {
   res.json({ database: states[mongoose.connection.readyState] });
 });
 
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/suppliers", require("./routes/supplierRoutes"));
 app.use("/api/products", require("./routes/productRoutes"));

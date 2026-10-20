@@ -24,6 +24,8 @@ const saleSchema = new mongoose.Schema(
     change: { type: Number, default: 0 },
     customerName: { type: String, default: "Walk-in customer" },
     status: { type: String, enum: ["completed", "refunded"], default: "completed" },
+    cashier: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    cashierName: { type: String, default: "" },
   },
   { timestamps: true }
 );

@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import Layout from "./components/Layout";
+import RequireAuth from "./components/RequireAuth";
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Checkout from "./pages/Checkout";
 import Products from "./pages/Products";
@@ -8,6 +10,9 @@ import Categories from "./pages/Categories";
 import Suppliers from "./pages/Suppliers";
 import Sales from "./pages/Sales";
 import LowStock from "./pages/LowStock";
+import Users from "./pages/Users";
+
+const adminOnly = (page) => <RequireAuth roles={["admin"]}>{page}</RequireAuth>;
 
 export default function App() {
   return (
@@ -19,14 +24,26 @@ export default function App() {
         }}
       />
       <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
+        <Route path="/login" element={<Login />} />
+
+        {/* Everything below needs a logged-in user */}
+        <Route
+          element={
+            <RequireAuth>
+              <Layout />
+            </RequireAuth>
+          }
+        >
           <Route path="/checkout" element={<Checkout />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/categories" element={<Categories />} />
-          <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/sales" element={<Sales />} />
-          <Route path="/low-stock" element={<LowStock />} />
+
+          <Route path="/" element={adminOnly(<Dashboard />)} />
+          <Route path="/products" element={adminOnly(<Products />)} />
+          <Route path="/categories" element={adminOnly(<Categories />)} />
+          <Route path="/suppliers" element={adminOnly(<Suppliers />)} />
+          <Route path="/low-stock" element={adminOnly(<LowStock />)} />
+          <Route path="/users" element={adminOnly(<Users />)} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

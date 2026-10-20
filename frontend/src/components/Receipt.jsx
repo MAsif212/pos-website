@@ -25,6 +25,7 @@ export default function Receipt({ sale, onClose, title = "Sale complete" }) {
         <div className="border-y border-dashed border-mocha py-2">
           <p>Invoice: {sale.invoiceNo}</p>
           <p>Date: {formatDate(sale.createdAt)}</p>
+          {sale.cashierName && <p>Cashier: {sale.cashierName}</p>}
           <p>Customer: {sale.customerName}</p>
           {sale.status === "refunded" && <p className="font-bold">*** REFUNDED ***</p>}
         </div>

@@ -8,22 +8,35 @@ import {
   Truck,
   Receipt,
   AlertTriangle,
+  Users as UsersIcon,
+  LogOut,
   Menu,
   X,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const links = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/checkout", label: "Checkout", icon: ShoppingCart },
-  { to: "/products", label: "Products", icon: Package },
-  { to: "/categories", label: "Categories", icon: Tags },
-  { to: "/suppliers", label: "Suppliers", icon: Truck },
-  { to: "/sales", label: "Sales history", icon: Receipt },
-  { to: "/low-stock", label: "Low stock", icon: AlertTriangle },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
+  { to: "/checkout", label: "Checkout", icon: ShoppingCart, roles: ["admin", "cashier"] },
+  { to: "/products", label: "Products", icon: Package, roles: ["admin"] },
+  { to: "/categories", label: "Categories", icon: Tags, roles: ["admin"] },
+  { to: "/suppliers", label: "Suppliers", icon: Truck, roles: ["admin"] },
+  { to: "/sales", label: "Sales history", icon: Receipt, roles: ["admin", "cashier"] },
+  { to: "/low-stock", label: "Low stock", icon: AlertTriangle, roles: ["admin"] },
+  { to: "/users", label: "Users", icon: UsersIcon, roles: ["admin"] },
 ];
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  const visibleLinks = links.filter((l) => l.roles.includes(user.role));
+  const initials = user.name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="min-h-screen">
@@ -41,10 +54,7 @@ export default function Layout() {
 
       {/* Dark overlay behind the mobile menu */}
       {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={() => setOpen(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -53,7 +63,7 @@ export default function Layout() {
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-start justify-between px-6 pt-7 pb-8">
+        <div className="flex items-start justify-between px-6 pt-7 pb-6">
           <div>
             <p className="font-serif text-2xl tracking-[0.2em]">FRESHMART</p>
             <p className="mt-1 text-sm text-sand">Supermarket POS</p>
@@ -67,8 +77,8 @@ export default function Layout() {
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3">
-          {links.map(({ to, label, icon: Icon }) => (
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
+          {visibleLinks.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -76,9 +86,7 @@ export default function Layout() {
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-xl px-4 py-3 text-base font-medium transition-colors ${
-                  isActive
-                    ? "bg-cream text-cocoa"
-                    : "text-cream/90 hover:bg-cocoa-light"
+                  isActive ? "bg-cream text-cocoa" : "text-cream/90 hover:bg-cocoa-light"
                 }`
               }
             >
@@ -88,7 +96,24 @@ export default function Layout() {
           ))}
         </nav>
 
-        <p className="px-6 py-5 text-xs text-sand">Admin panel</p>
+        {/* Logged-in user */}
+        <div className="m-3 rounded-xl bg-cocoa-dark p-3">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cream font-bold text-cocoa">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold">{user.name}</p>
+              <p className="text-sm capitalize text-sand">{user.role}</p>
+            </div>
+          </div>
+          <button
+            onClick={logout}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-sand/40 py-2 text-sm font-semibold hover:bg-cocoa-light"
+          >
+            <LogOut size={16} /> Log out
+          </button>
+        </div>
       </aside>
 
       {/* Page content */}
