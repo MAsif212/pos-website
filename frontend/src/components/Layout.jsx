@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import InstallButton from "./InstallButton";
 
 const links = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
@@ -95,6 +96,11 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+
+        {/* Install button (only shows when the app can be installed) */}
+        <div className="px-3 pt-3">
+          <InstallButton />
+        </div>
 
         {/* Logged-in user */}
         <div className="m-3 rounded-xl bg-cocoa-dark p-3">

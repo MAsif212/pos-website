@@ -9,8 +9,9 @@ const app = express();
 
 // Websites allowed to use this API
 const allowedOrigins = [
-  "http://localhost:5173",
+  "http://localhost:5173", // npm run dev
   "http://127.0.0.1:5173",
+  "http://localhost:4173", // npm run preview (testing the built app)
   ...(process.env.CLIENT_URL || "")
     .split(",")
     .map((url) => url.trim().replace(/\/$/, ""))
