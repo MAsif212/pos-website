@@ -56,23 +56,9 @@ export default defineConfig({
         // Any page like /checkout or /products opens index.html when offline
         navigateFallback: "/index.html",
 
+        // API data (products, categories, offline sales) is stored by the app
+        // itself in IndexedDB (src/offline), so only fonts are cached here.
         runtimeCaching: [
-          // Products and categories from the API (Checkout needs both):
-          // try the internet first, use the saved copy if offline
-          {
-            urlPattern: ({ url }) =>
-              url.pathname.startsWith("/api/products") ||
-              url.pathname.startsWith("/api/categories"),
-            method: "GET",
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-catalog",
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          // Google Fonts: save them so headings keep their style offline
           {
             urlPattern: ({ url }) =>
               url.origin === "https://fonts.googleapis.com" ||
@@ -93,4 +79,14 @@ export default defineConfig({
       },
     }),
   ],
+
+  // Always use ONE copy of React, even inside packages like dexie-react-hooks
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
+
+  // Prepare these packages up front, so Vite doesn't re-prepare them mid-session
+  optimizeDeps: {
+    include: ["react", "react-dom", "dexie", "dexie-react-hooks"],
+  },
 });

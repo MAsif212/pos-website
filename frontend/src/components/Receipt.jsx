@@ -12,6 +12,9 @@ const STORE = {
 export default function Receipt({ sale, onClose, title = "Sale complete" }) {
   if (!sale) return null;
 
+  const notSynced = sale.offline === true;
+  const madeOffline = notSynced || sale.wasOffline === true;
+
   return (
     <Modal open={!!sale} title={title} onClose={onClose}>
       <div id="receipt" className="rounded-xl bg-white p-5 font-mono text-sm text-cocoa">
@@ -27,6 +30,11 @@ export default function Receipt({ sale, onClose, title = "Sale complete" }) {
           <p>Date: {formatDate(sale.createdAt)}</p>
           {sale.cashierName && <p>Cashier: {sale.cashierName}</p>}
           <p>Customer: {sale.customerName}</p>
+          {madeOffline && (
+            <p className="font-bold">
+              *** OFFLINE SALE · {notSynced ? "NOT YET SYNCED" : "SYNCED"} ***
+            </p>
+          )}
           {sale.status === "refunded" && <p className="font-bold">*** REFUNDED ***</p>}
         </div>
 

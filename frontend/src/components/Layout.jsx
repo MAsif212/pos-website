@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useLiveQuery } from "dexie-react-hooks";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -12,9 +14,15 @@ import {
   LogOut,
   Menu,
   X,
+  RefreshCw,
+  WifiOff,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { db } from "../offline/db";
+import { useOnline, useSyncEngine } from "../offline/useSync";
 import InstallButton from "./InstallButton";
+import SyncStatus from "./SyncStatus";
+import Modal from "./Modal";
 
 const links = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
@@ -27,9 +35,59 @@ const links = [
   { to: "/users", label: "Users", icon: UsersIcon, roles: ["admin"] },
 ];
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 export default function Layout() {
   const [open, setOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [syncingForLogout, setSyncingForLogout] = useState(false);
   const { user, logout } = useAuth();
+  const online = useOnline();
+  const isAdmin = user.role === "admin";
+
+  // Upload offline sales automatically while someone is logged in
+  const sync = useSyncEngine();
+
+  // Sales still on this device
+  const waiting = useLiveQuery(
+    () => db.pendingSales.where("status").anyOf("pending", "syncing").count(),
+    [],
+    0
+  );
+  const failed = useLiveQuery(
+    () => db.pendingSales.where("status").equals("failed").count(),
+    [],
+    0
+  );
+  const unsynced = waiting + failed;
+
+  const handleLogout = () => {
+    if (unsynced > 0) setLogoutOpen(true);
+    else logout();
+  };
+
+  // Try to upload; if nothing is left on the device, log out
+  const syncThenLogout = async () => {
+    setSyncingForLogout(true);
+    try {
+      await sync.syncNow();
+      const left = await db.pendingSales.count();
+      if (left === 0) {
+        toast.success("All sales synced. Logging out.");
+        setLogoutOpen(false);
+        logout();
+      } else {
+        toast.error(`${plural(left, "sale")} still not synced.`);
+      }
+    } finally {
+      setSyncingForLogout(false);
+    }
+  };
+
+  const forceLogout = () => {
+    setLogoutOpen(false);
+    logout();
+  };
 
   const visibleLinks = links.filter((l) => l.roles.includes(user.role));
   const initials = user.name
@@ -97,6 +155,11 @@ export default function Layout() {
           ))}
         </nav>
 
+        {/* Online / offline and sync status */}
+        <div className="px-3 pt-3">
+          <SyncStatus {...sync} />
+        </div>
+
         {/* Install button (only shows when the app can be installed) */}
         <div className="px-3 pt-3">
           <InstallButton />
@@ -114,7 +177,7 @@ export default function Layout() {
             </div>
           </div>
           <button
-            onClick={logout}
+            onClick={handleLogout}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-sand/40 py-2 text-sm font-semibold hover:bg-cocoa-light"
           >
             <LogOut size={16} /> Log out
@@ -128,6 +191,72 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Logout with unsynced sales */}
+      <Modal
+        open={logoutOpen}
+        title="Sales not synced yet"
+        onClose={() => !syncingForLogout && setLogoutOpen(false)}
+      >
+        <div className="space-y-4">
+          {waiting > 0 && (
+            <p className="text-lg">
+              <span className="font-bold">{plural(waiting, "sale")}</span>{" "}
+              {waiting === 1 ? "is" : "are"} saved on this device and not uploaded yet.
+            </p>
+          )}
+
+          {failed > 0 && (
+            <p className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 font-semibold text-red-800">
+              <AlertTriangle size={20} className="mt-0.5 shrink-0" />
+              {plural(failed, "sale")} couldn't sync and{" "}
+              {failed === 1 ? "needs" : "need"} the admin to check{failed === 1 ? " it" : " them"}.
+            </p>
+          )}
+
+          {!online && waiting > 0 && (
+            <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-amber-900">
+              <WifiOff size={20} className="mt-0.5 shrink-0" />
+              You're offline. Connect to the internet, then tap Sync now.
+            </p>
+          )}
+
+          <p className="text-mocha">
+            {isAdmin
+              ? "Sync them now, or log out anyway: they stay on this device and sync after the next login."
+              : "Sync them before logging out, so no sales are left on this device."}
+          </p>
+
+          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+            {waiting > 0 && (
+              <button
+                className="btn btn-primary flex-1"
+                onClick={syncThenLogout}
+                disabled={!online || syncingForLogout}
+              >
+                <RefreshCw size={18} className={syncingForLogout ? "animate-spin" : ""} />
+                {syncingForLogout ? "Syncing…" : "Sync now"}
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                className="btn btn-danger flex-1"
+                onClick={forceLogout}
+                disabled={syncingForLogout}
+              >
+                <LogOut size={18} /> Log out anyway
+              </button>
+            )}
+            <button
+              className="btn btn-secondary flex-1"
+              onClick={() => setLogoutOpen(false)}
+              disabled={syncingForLogout}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

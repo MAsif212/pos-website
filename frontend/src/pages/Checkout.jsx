@@ -9,17 +9,24 @@ import {
   CreditCard,
   ScanBarcode,
   X,
+  WifiOff,
 } from "lucide-react";
 import api from "../api/axios";
 import PageHeader from "../components/PageHeader";
 import Receipt from "../components/Receipt";
-import { formatRs } from "../utils/format";
+import { useAuth } from "../context/AuthContext";
+import { fetchCatalog } from "../offline/catalog";
+import { newClientId, saveSaleOffline } from "../offline/sales";
+import { formatRs, formatDate } from "../utils/format";
 
 const money = (n) => Math.round(n * 100) / 100;
 
 export default function Checkout() {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [catalogSource, setCatalogSource] = useState("online");
+  const [catalogSavedAt, setCatalogSavedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState("");
@@ -34,11 +41,14 @@ export default function Checkout() {
   const [cartOpen, setCartOpen] = useState(false);
   const searchRef = useRef(null);
 
+  // Online: fresh from the server (and saved on the device). Offline: the saved copy.
   const load = async () => {
     try {
-      const [p, c] = await Promise.all([api.get("/products"), api.get("/categories")]);
-      setProducts(p.data);
-      setCategories(c.data);
+      const data = await fetchCatalog();
+      setProducts(data.products);
+      setCategories(data.categories);
+      setCatalogSource(data.source);
+      setCatalogSavedAt(data.savedAt);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -139,29 +149,74 @@ export default function Checkout() {
     .filter((v) => v >= total && v > 0)
     .slice(0, 4);
 
+  // Show the receipt and get ready for the next customer
+  const finishSale = (saleReceipt) => {
+    setReceipt(saleReceipt);
+    setCartOpen(false);
+    clearCart();
+    load();
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return toast.error("Cart is empty");
     if (paymentMethod === "cash" && paid < total) {
       return toast.error(`Amount received is less than ${formatRs(total)}`);
     }
+
     setProcessing(true);
+
+    // One ID for this sale, used online AND offline, so it can never be saved twice
+    const clientId = newClientId();
+    const details = {
+      discount: safeDiscount,
+      taxRate: Number(taxRate) || 0,
+      paymentMethod,
+      amountPaid: paid,
+      customerName: customerName.trim() || undefined,
+    };
+
     try {
-      const { data } = await api.post("/sales", {
-        items: cart.map((i) => ({ product: i.product._id, quantity: i.quantity })),
-        discount: safeDiscount,
-        taxRate: Number(taxRate) || 0,
-        paymentMethod,
-        amountPaid: paid,
-        customerName: customerName.trim() || undefined,
-      });
-      toast.success(`Sale ${data.invoiceNo} completed`);
-      setReceipt(data);
-      setCartOpen(false);
-      clearCart();
-      load();
-    } catch (err) {
-      toast.error(err.message);
-      load();
+      // 1. Try the server first (skipped when the device knows it's offline)
+      if (navigator.onLine) {
+        try {
+          const { data } = await api.post(
+            "/sales",
+            {
+              ...details,
+              clientId,
+              items: cart.map((i) => ({ product: i.product._id, quantity: i.quantity })),
+            },
+            { timeout: 15000 }
+          );
+          toast.success(`Sale ${data.invoiceNo} completed`);
+          finishSale(data);
+          return;
+        } catch (err) {
+          // The server answered with a real problem (e.g. out of stock): stop here
+          if (err.status) {
+            toast.error(err.message);
+            load();
+            return;
+          }
+          // No answer at all: fall through and save on this device
+        }
+      }
+
+      // 2. Save on this device; it will sync when the internet is back
+      try {
+        const offlineReceipt = await saveSaleOffline({
+          clientId,
+          cart,
+          ...details,
+          cashier: user,
+        });
+        toast.success(`Saved offline (${offlineReceipt.invoiceNo}). It will sync automatically.`, {
+          duration: 5000,
+        });
+        finishSale(offlineReceipt);
+      } catch (err) {
+        toast.error(`Couldn't save the sale on this device: ${err.message}`);
+      }
     } finally {
       setProcessing(false);
     }
@@ -175,6 +230,18 @@ export default function Checkout() {
   return (
     <div className="pb-24 lg:pb-0">
       <PageHeader title="Checkout" subtitle="Scan or tap products to add them to the cart" />
+
+      {/* Offline banner */}
+      {catalogSource === "offline" && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+          <WifiOff size={20} className="mt-0.5 shrink-0" />
+          <p>
+            <span className="font-semibold">You're offline.</span> Showing products saved on this
+            device{catalogSavedAt ? ` on ${formatDate(catalogSavedAt)}` : ""}. Sales are saved
+            here and sync when you're back online.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* ---------- Left: products ---------- */}
@@ -429,7 +496,11 @@ export default function Checkout() {
         </div>
       )}
 
-      <Receipt sale={receipt} onClose={closeReceipt} />
+      <Receipt
+        sale={receipt}
+        title={receipt?.offline ? "Saved offline" : "Sale complete"}
+        onClose={closeReceipt}
+      />
     </div>
   );
 }
